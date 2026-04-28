@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks         Task[]
+  routines      Routine[]
+  focusSessions FocusSession[]
+  moodLogs      MoodLog[]
+  kiwiState     KiwiState?
+
+  @@map("users")
+}
+
+model Task {
+  id           String      @id @default(cuid())
+  userId       String
+  title        String
+  description  String?
+  status       TaskStatus  @default(TODO)
+  priority     Priority    @default(MEDIUM)
+  energy       EnergyLevel @default(MEDIUM)
+  category     Category    @default(PERSONAL)
+  timeEstimate Int? // minutes
+  scheduledAt  DateTime?
+  completedAt  DateTime?
+  snoozedUntil DateTime?
+  order        Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtasks Subtask[]
+
+  @@index([userId, status])
+  @@index([userId, scheduledAt])
+  @@map("tasks")
+}
+
+model Subtask {
+  id        String   @id @default(cuid())
+  taskId    String
+  title     String
+  completed Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("subtasks")
+}
+
+model Routine {
+  id        String      @id @default(cuid())
+  userId    String
+  name      String
+  type      RoutineType @default(MORNING)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps RoutineStep[]
+
+  @@index([userId])
+  @@map("routines")
+}
+
+model RoutineStep {
+  id        String   @id @default(cuid())
+  routineId String
+  name      String
+  icon      String?
+  duration  Int // seconds
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  routine Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@map("routine_steps")
+}
+
+model FocusSession {
+  id          String      @id @default(cuid())
+  userId      String
+  type        SessionType @default(DEEP_WORK)
+  duration    Int // planned seconds
+  elapsed     Int         @default(0) // actual seconds
+  completed   Boolean     @default(false)
+  taskId      String?
+  startedAt   DateTime    @default(now())
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("focus_sessions")
+}
+
+model MoodLog {
+  id       String   @id @default(cuid())
+  userId   String
+  mood     Int // 1-5
+  note     String?
+  loggedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt])
+  @@map("mood_logs")
+}
+
+model KiwiState {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  xp        Int      @default(0)
+  level     Int      @default(1)
+  outfit    String   @default("default")
+  streakDays Int     @default(0)
+  lastActiveAt DateTime @default(now())
+  unlockedOutfits String[] @default(["default"])
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("kiwi_states")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  SNOOZED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EnergyLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum Category {
+  WORK
+  PERSONAL
+  HEALTH
+  LEARNING
+}
+
+enum RoutineType {
+  MORNING
+  AFTERNOON
+  EVENING
+  CUSTOM
+}
+
+enum SessionType {
+  DEEP_WORK
+  QUICK_TASK
+  BREAK
+}
